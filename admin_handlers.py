@@ -50,7 +50,6 @@ async def _render_panel(update: Update):
 
     text = (
         "🛡️ *ReFrame — Admin Panel*\n"
-        "_by Hoot-Code_\n\n"
         "📊 *Overview:*\n"
         f"👥 Users: `{stats['total_users']}`  |  🛑 Banned: `{stats['total_banned']}`\n"
         f"📸 Photos: `{stats['total_photos']}`  |  🎬 Videos: `{stats['total_videos']}`\n"
