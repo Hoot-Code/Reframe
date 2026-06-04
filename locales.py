@@ -1,5 +1,5 @@
 """
-locales.py — Hoot-code Bot
+locales.py 
 All user-facing strings in 4 languages: English, Russian, Chinese, Persian.
 Helper function t(lang, key, **kwargs) returns the localised string.
 """
@@ -24,7 +24,7 @@ STRINGS: dict[str, dict[str, str]] = {
 
         "welcome": (
             "👋 *Welcome, {name}!*\n\n"
-            "🦉 *Hoot-code* — your media processing bot.\n\n"
+            "🦉 *Reframe* — your media processing bot.\n\n"
             "📸 I can *resize*, *compress*, and *convert* your Photos & Videos.\n\n"
             "📌 *How to use:*\n"
             "1. Send me a photo or video\n"
@@ -36,7 +36,7 @@ STRINGS: dict[str, dict[str, str]] = {
         ),
 
         "help_text": (
-            "📚 *Hoot-code — Help Guide*\n\n"
+            "📚 *Reframe — Help Guide*\n\n"
             "*Supported input formats:*\n"
             "• Photos: JPG, PNG, WEBP, GIF, BMP\n"
             "• Videos: MP4, MOV, AVI, MKV, WEBM\n\n"
@@ -128,7 +128,7 @@ STRINGS: dict[str, dict[str, str]] = {
 
         "welcome": (
             "👋 *Добро пожаловать, {name}!*\n\n"
-            "🦉 *Hoot-code* — ваш бот для обработки медиа.\n\n"
+            "🦉 *Reframe* — ваш бот для обработки медиа.\n\n"
             "📸 Я умею *изменять размер*, *сжимать* и *конвертировать* фото и видео.\n\n"
             "📌 *Как пользоваться:*\n"
             "1. Отправьте фото или видео\n"
@@ -140,7 +140,7 @@ STRINGS: dict[str, dict[str, str]] = {
         ),
 
         "help_text": (
-            "📚 *Hoot-code — Руководство*\n\n"
+            "📚 *Reframe — Руководство*\n\n"
             "*Поддерживаемые форматы:*\n"
             "• Фото: JPG, PNG, WEBP, GIF, BMP\n"
             "• Видео: MP4, MOV, AVI, MKV, WEBM\n\n"
@@ -217,7 +217,7 @@ STRINGS: dict[str, dict[str, str]] = {
 
         "welcome": (
             "👋 *欢迎，{name}！*\n\n"
-            "🦉 *Hoot-code* — 您的媒体处理机器人。\n\n"
+            "🦉 *Reframe* — 您的媒体处理机器人。\n\n"
             "📸 我可以*调整大小*、*压缩*和*转换*您的照片和视频。\n\n"
             "📌 *使用方法：*\n"
             "1. 发送照片或视频\n"
@@ -229,7 +229,7 @@ STRINGS: dict[str, dict[str, str]] = {
         ),
 
         "help_text": (
-            "📚 *Hoot-code — 使用指南*\n\n"
+            "📚 *Reframe — 使用指南*\n\n"
             "*支持格式：*\n"
             "• 照片：JPG, PNG, WEBP, GIF, BMP\n"
             "• 视频：MP4, MOV, AVI, MKV, WEBM\n\n"
@@ -302,7 +302,7 @@ STRINGS: dict[str, dict[str, str]] = {
 
         "welcome": (
             "👋 *خوش آمدید، {name}!*\n\n"
-            "🦉 *Hoot-code* — ربات پردازش رسانه شما.\n\n"
+            "🦉 *Reframe* — ربات پردازش رسانه شما.\n\n"
             "📸 می‌توانم عکس‌ها و ویدیوهای شما را *تغییر اندازه*، *فشرده* و *تبدیل فرمت* کنم.\n\n"
             "📌 *نحوه استفاده:*\n"
             "1. عکس یا ویدیو ارسال کنید\n"
@@ -314,7 +314,7 @@ STRINGS: dict[str, dict[str, str]] = {
         ),
 
         "help_text": (
-            "📚 *Hoot-code — راهنمای کامل*\n\n"
+            "📚 *Reframe — راهنمای کامل*\n\n"
             "*فرمت‌های پشتیبانی‌شده:*\n"
             "• عکس: JPG، PNG، WEBP، GIF، BMP\n"
             "• ویدیو: MP4، MOV، AVI، MKV، WEBM\n\n"
