@@ -1,5 +1,5 @@
 """
-utils.py — Hoot-code Bot
+utils.py —
 Small shared utilities: startup cleanup, safe async file deletion.
 """
 
