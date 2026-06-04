@@ -1,5 +1,5 @@
 """
-scanner.py — Hoot-code Bot
+scanner.py — 
 Security scanner: validates file magic bytes against claimed type and
 searches for embedded malicious patterns (scripts, executables, polyglots).
 Any file that fails is deleted immediately and the event is logged to DB.
