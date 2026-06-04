@@ -1,5 +1,5 @@
 """
-config.py — Hoot-code Bot
+config.py —
 All settings, paths, conversation states, and logging live here.
 """
 
