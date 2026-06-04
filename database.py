@@ -1,5 +1,5 @@
 """
-database.py — Hoot-code Bot
+database.py 
 Thread-safe SQLite manager with user stats, settings, process logs,
 security event logs, and per-user language preference.
 """
