@@ -1,5 +1,5 @@
 """
-media_processor.py — Hoot-code Bot
+media_processor.py — 
 All image and video processing: resize, compress, format conversion.
 Runs in a thread pool so it never blocks the async event loop.
 """
