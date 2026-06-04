@@ -1,5 +1,5 @@
 """
-handlers.py — Hoot-code Bot
+handlers.py 
 All user-facing conversation handlers:
   /start, /help, /stats, /cancel, /lang
   receive_media → size → mode → format → process
