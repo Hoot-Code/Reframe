@@ -1,6 +1,10 @@
 <div align="center">
 
+> **Persian / فارسی:** [README.fa.md](README.fa.md)
+
+
 # 🦉 ReFrame
+
 
 **A powerful Telegram bot for resizing, compressing, and converting photos & videos.**
 
