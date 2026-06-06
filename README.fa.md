@@ -199,6 +199,5 @@ docker run -d --env-file .env --name reframe reframe-bot
 
 ## 📄 مجوز
 
-منتشر شده تحت مجوز MIT
 
-© Hoot-Code
+MIT © [Hoot-Code](https://github.com/Hoot-Code)
