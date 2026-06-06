@@ -1,6 +1,6 @@
 <div align="center">
 
-> **  فارسی:** [README.fa.md](README.fa.md)
+>  فارسی: [README.fa.md](README.fa.md)
 
 
 # 🦉 ReFrame
