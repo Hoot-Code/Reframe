@@ -2,9 +2,7 @@
 
 # 🦉 ReFrame
 
-**ربات قدرتمند تلگرام برای تغییر اندازه، فشرده‌سازی و تبدیل تصاویر و ویدئوها**
 
-*توسعه داده شده توسط Hoot-Code*
 
 [![Python](https://img.shields.io/badge/Python-3.12%2B-blue?logo=python)](https://python.org)
 [![python-telegram-bot](https://img.shields.io/badge/python--telegram--bot-21.5-blue)](https://python-telegram-bot.org)
