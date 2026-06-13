@@ -5,6 +5,7 @@ security event logs, and per-user language preference.
 """
 
 import sqlite3
+import atexit
 import threading
 import logging
 from datetime import datetime
@@ -21,6 +22,7 @@ class DatabaseManager:
         self.conn    = sqlite3.connect(db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self._init_tables()
+        atexit.register(self._close)
 
     # ── Schema ─────────────────────────────────────────────────────────────────
     def _init_tables(self):
@@ -86,6 +88,13 @@ class DatabaseManager:
             """)
 
             self.conn.commit()
+
+    def _close(self):
+        """Close DB connection cleanly on shutdown."""
+        try:
+            self.conn.close()
+        except Exception:
+            pass
 
     # ── Low-level execute ──────────────────────────────────────────────────────
     def execute(self, query: str, params=(), *,
@@ -210,19 +219,24 @@ class DatabaseManager:
 
     # ── Aggregate stats ────────────────────────────────────────────────────────
     def get_total_stats(self) -> dict:
-        def _int(query):
-            row = self.execute(query, fetch_one=True)
-            return list(row)[0] if row else 0
-
-        return {
-            "total_users":   _int("SELECT COUNT(*) FROM users"),
-            "total_photos":  _int("SELECT COALESCE(SUM(photos_processed),0) FROM users"),
-            "total_videos":  _int("SELECT COALESCE(SUM(videos_processed),0) FROM users"),
-            "total_banned":  _int("SELECT COUNT(*) FROM users WHERE is_banned=1"),
-            "total_threats": _int("SELECT COUNT(*) FROM security_logs"),
-            "total_jobs":    _int("SELECT COUNT(*) FROM process_logs"),
-            "success_jobs":  _int("SELECT COUNT(*) FROM process_logs WHERE status='success'"),
-        }
+        row = self.execute(
+            """
+            SELECT
+                (SELECT COUNT(*) FROM users) AS total_users,
+                (SELECT COALESCE(SUM(photos_processed),0) FROM users) AS total_photos,
+                (SELECT COALESCE(SUM(videos_processed),0) FROM users) AS total_videos,
+                (SELECT COUNT(*) FROM users WHERE is_banned=1) AS total_banned,
+                (SELECT COUNT(*) FROM security_logs) AS total_threats,
+                (SELECT COUNT(*) FROM process_logs) AS total_jobs,
+                (SELECT COUNT(*) FROM process_logs WHERE status='success') AS success_jobs
+            """,
+            fetch_one=True,
+        )
+        if not row:
+            return {k: 0 for k in ("total_users","total_photos","total_videos",
+                                    "total_banned","total_threats","total_jobs","success_jobs")}
+        return {k: row[k] for k in ("total_users","total_photos","total_videos",
+                                     "total_banned","total_threats","total_jobs","success_jobs")}
 
 
 # ── Singleton ──────────────────────────────────────────────────────────────────

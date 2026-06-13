@@ -1,5 +1,7 @@
 # Environment & secrets
 .env
+.env.*
+!.env.example
 
 # Database
 *.db
@@ -24,7 +26,6 @@ build/
 venv/
 env/
 .venv/
-.env/
 
 # IDE
 .idea/
@@ -35,3 +36,7 @@ env/
 
 # Logs
 *.log
+
+# Release archives
+*.tar.gz
+*.zip

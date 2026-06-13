@@ -14,6 +14,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 
 from config import CONFIG, ADMIN_IDS, ADMIN_MENU, ADMIN_INPUT
 from database import db
+from handlers import _md_escape
 
 logger = logging.getLogger(__name__)
 
@@ -193,12 +194,6 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["adm_action"] = "settings"
         return ADMIN_INPUT
 
-    # ── Back from ADMIN_INPUT state ───────────────────────────────────────────
-    if data == "adm_back":
-        context.user_data.pop("adm_action", None)
-        await _render_panel(update)
-        return ADMIN_MENU
-
     # ── Broadcast prompt ───────────────────────────────────────────────────────
     if data == "adm_cast":
         await query.edit_message_text(
@@ -286,7 +281,7 @@ async def admin_input_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                     )
                 except Exception:
                     pass
-            await asyncio.sleep(0.04)   # respect Telegram rate limit
+            await asyncio.sleep(0.05)   # respect Telegram rate limit (20 msg/s)
 
         await prog.edit_text(
             f"✅ *Broadcast complete!*\n\n✓ Sent: {sent}  |  ✗ Failed: {failed}",
@@ -319,8 +314,8 @@ async def admin_input_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         info = (
             f"👤 *User Info*\n\n"
             f"🆔 ID: `{uid}`\n"
-            f"👤 Name: {row['first_name'] or '—'}\n"
-            f"📛 Username: @{row['username'] or '—'}\n"
+            f"👤 Name: {_md_escape(row['first_name'] or '—')}\n"
+            f"📛 Username: @{_md_escape(row['username'] or '—')}\n"
             f"📅 Joined: {(row['joined_date'] or '?')[:10]}\n"
             f"🌐 Language: `{row['language'] or 'en'}`\n\n"
             f"📸 Photos: `{row['photos_processed'] or 0}`\n"
@@ -345,32 +340,37 @@ async def admin_input_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         if len(parts) == 2:
             cmd, val = parts[0].lower(), parts[1]
+            VALID_PRESETS = {"ultrafast","superfast","veryfast","faster",
+                             "fast","medium","slow","slower","veryslow"}
             try:
                 if cmd == "set_crf":
                     v = int(val)
-                    assert 0 <= v <= 51
+                    if not (0 <= v <= 51):
+                        raise ValueError
                     CONFIG["video_crf"] = v
                     db.set_setting("video_crf", v)
                     ok = True
                 elif cmd == "set_preset":
-                    assert val in ("ultrafast","superfast","veryfast","faster",
-                                   "fast","medium","slow","slower","veryslow")
+                    if val not in VALID_PRESETS:
+                        raise ValueError
                     CONFIG["video_preset"] = val
                     db.set_setting("video_preset", val)
                     ok = True
                 elif cmd == "set_quality":
                     v = int(val)
-                    assert 1 <= v <= 95
+                    if not (1 <= v <= 95):
+                        raise ValueError
                     CONFIG["compress_image_quality"] = v
                     db.set_setting("compress_image_quality", v)
                     ok = True
                 elif cmd == "set_maxsize":
                     v = int(val)
-                    assert 1 <= v <= 2000
+                    if not (1 <= v <= 2000):
+                        raise ValueError
                     CONFIG["max_file_size_mb"] = v
                     db.set_setting("max_file_size_mb", v)
                     ok = True
-            except (ValueError, AssertionError):
+            except (ValueError, TypeError):
                 pass
 
         if ok:

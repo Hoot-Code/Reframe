@@ -12,10 +12,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# ── Logging (must be set up before any logger usage) ──────────────────────────
+logging.basicConfig(
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    level=logging.INFO,
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+logger = logging.getLogger(__name__)
+
 # ── Token ──────────────────────────────────────────────────────────────────────
 BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
-if not BOT_TOKEN:
-    sys.exit("CRITICAL: BOT_TOKEN missing in .env")
 
 # ── Admins ─────────────────────────────────────────────────────────────────────
 ADMIN_IDS: Set[int] = set()
@@ -23,16 +29,25 @@ for _id in os.getenv("ADMIN_IDS", "").split(","):
     if _id.strip().isdigit():
         ADMIN_IDS.add(int(_id.strip()))
 
+if not ADMIN_IDS:
+    logger.warning("No ADMIN_IDS configured — admin panel will be inaccessible")
+
 # ── Paths ──────────────────────────────────────────────────────────────────────
 TEMP_DIR = "temp_media"
 DB_FILE  = "bot_data.db"
 os.makedirs(TEMP_DIR, exist_ok=True)
 
 # ── Runtime config ─────────────────────────────────────────────────────────────
+def _int_env(key: str, default: int) -> int:
+    try:
+        return max(1, int(os.getenv(key, default)))
+    except (ValueError, TypeError):
+        return default
+
 CONFIG: dict = {
     "maintenance_mode":       False,
-    "max_concurrent_jobs":    int(os.getenv("MAX_CONCURRENT_JOBS", 2)),
-    "max_file_size_mb":       int(os.getenv("MAX_FILE_SIZE_MB",    50)),
+    "max_concurrent_jobs":    _int_env("MAX_CONCURRENT_JOBS", 2),
+    "max_file_size_mb":       _int_env("MAX_FILE_SIZE_MB",    50),
     "max_resolution":         3840,
     "process_timeout":        600,        # seconds
     "video_crf":              23,
@@ -60,16 +75,6 @@ PRESET_SIZES: dict = {
     "HD          (1280x720)":  (1280,  720),
     "Full HD     (1920x1080)": (1920, 1080),
     "4K          (3840x2160)": (3840, 2160),
-    "YouTube     (1280x720)":  (1280,  720),
-    "TikTok      (1080x1920)": (1080, 1920),
     "Twitter     (1200x675)":  (1200,  675),
     "Facebook    (820x312)":   (820,   312),
 }
-
-# ── Logging ────────────────────────────────────────────────────────────────────
-logging.basicConfig(
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    level=logging.INFO,
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
-logger = logging.getLogger(__name__)

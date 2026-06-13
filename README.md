@@ -50,7 +50,7 @@ ReFrame/
 ├── utils.py             # Helpers (cleanup, safe_delete)
 ├── requirements.txt
 ├── Dockerfile
-├── .env                 # Secrets (NOT committed)
+├── .env.example         # Template for secrets (copy to .env)
 ├── .gitignore
 └── temp_media/          # Created automatically
 ```
@@ -86,7 +86,7 @@ sudo apt install ffmpeg
 
 ### 4. Configure
 ```bash
-cp .env .env.local   # or just edit .env
+cp .env.example .env
 ```
 Fill in:
 ```
@@ -165,7 +165,6 @@ Access `/admin` (only visible to user IDs listed in `ADMIN_IDS`):
 | HD | 1280 × 720 |
 | Full HD | 1920 × 1080 |
 | 4K | 3840 × 2160 |
-| YouTube | 1280 × 720 |
 | Twitter | 1200 × 675 |
 | Facebook Cover | 820 × 312 |
 | ✏️ Custom | any (up to 3840 px) |

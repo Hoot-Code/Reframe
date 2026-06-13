@@ -1,8 +1,20 @@
 """
-scanner.py — 
+scanner.py —
 Security scanner: validates file magic bytes against claimed type and
 searches for embedded malicious patterns (scripts, executables, polyglots).
 Any file that fails is deleted immediately and the event is logged to DB.
+
+⚠️  LIMITATIONS — This is a lightweight pre-screening mechanism, NOT a full
+security analysis.  It inspects only the first 8 KB of file content and
+relies on pattern matching.  It CANNOT detect:
+  - Polymorphic or encrypted payloads that avoid known signatures
+  - Logic bombs or time-delayed exploits
+  - Steganographic content hidden in valid image/video data
+  - Exploits targeting specific decoder vulnerabilities
+  - Memory-corruption triggers that require full file parsing
+
+This scanner should be treated as a first line of defense that blocks
+the most obvious threats, not as a guarantee of file safety.
 """
 
 import os
@@ -48,6 +60,14 @@ def _read_head(path: str) -> bytes:
     size = os.path.getsize(path)
     with open(path, "rb") as fh:
         return fh.read(min(SCAN_BYTES, size))
+
+
+def _read_tail(path: str, n: int = 16) -> bytes:
+    """Read the last *n* bytes of a file (for EOF marker checks)."""
+    size = os.path.getsize(path)
+    with open(path, "rb") as fh:
+        fh.seek(max(0, size - n))
+        return fh.read()
 
 
 def _check_image(head: bytes) -> tuple[bool, str]:
@@ -97,6 +117,16 @@ def _check_malicious(head: bytes) -> tuple[bool, str]:
     return True, ""
 
 
+def _check_eof(tail: bytes, file_size: int, media_type: str, head: bytes) -> tuple[bool, str]:
+    """Validate EOF markers by reading the actual end of the file."""
+    if media_type == "photo":
+        # Only validate JPEG EOF — PNG/GIF/BMP have no reliable trailing marker
+        if head[:3] == b"\xff\xd8\xff":
+            if tail[-2:] != b"\xff\xd9":
+                return False, "JPEG file does not end with valid EOF marker"
+    return True, ""
+
+
 # ── Public API ─────────────────────────────────────────────────────────────────
 def scan_file(file_path: str, media_type: str) -> tuple[bool, str]:
     """
@@ -111,6 +141,9 @@ def scan_file(file_path: str, media_type: str) -> tuple[bool, str]:
     -------
     (True, "")              — file is safe
     (False, reason_string)  — file is dangerous; caller must delete it
+
+    NOTE: This is a lightweight pre-screening mechanism.  See module
+    docstring for detailed limitations.
     """
     try:
         if not os.path.exists(file_path):
@@ -120,6 +153,7 @@ def scan_file(file_path: str, media_type: str) -> tuple[bool, str]:
             return False, "File is empty"
 
         head = _read_head(file_path)
+        file_size = os.path.getsize(file_path)
 
         # 1. Magic-byte validation
         if media_type == "photo":
@@ -138,6 +172,14 @@ def scan_file(file_path: str, media_type: str) -> tuple[bool, str]:
         if not safe:
             logger.warning(f"[SCAN] Threat detected — {file_path}: {threat}")
             return False, threat
+
+        # 3. EOF marker validation — read actual tail of file
+        if file_size > SCAN_BYTES:
+            tail = _read_tail(file_path, 32)
+            safe, threat = _check_eof(tail, file_size, media_type, head)
+            if not safe:
+                logger.warning(f"[SCAN] EOF check — {file_path}: {threat}")
+                return False, threat
 
         logger.info(f"[SCAN] OK — {file_path}")
         return True, ""

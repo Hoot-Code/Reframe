@@ -7,6 +7,7 @@ main thread.  We create and set one explicitly before calling run_polling().
 """
 
 import asyncio
+import sys
 import logging
 
 from telegram.ext import (
@@ -137,6 +138,10 @@ def build_app():
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
 def main():
+    # ── Validate required config ───────────────────────────────────────────────
+    if not BOT_TOKEN:
+        sys.exit("CRITICAL: BOT_TOKEN missing in .env")
+
     # ── Restore persisted settings from DB ────────────────────────────────────
     restore_map = {
         "maintenance_mode":       lambda v: v == "True",

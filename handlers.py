@@ -7,6 +7,7 @@ All user-facing conversation handlers:
 
 import asyncio
 import os
+import re
 import time
 import uuid
 import logging
@@ -25,16 +26,23 @@ from scanner import scan_file
 from media_processor import (
     process_image_sync, process_video_sync,
     IMAGE_FORMATS, VIDEO_FORMATS,
+    EXT_TO_IMAGE_FORMAT, EXT_TO_VIDEO_FORMAT,
 )
 from utils import safe_delete
 
 logger = logging.getLogger(__name__)
 
-# One semaphore shared across all users
+# One semaphore shared across all users (recreated when config changes)
 _job_sem = asyncio.Semaphore(CONFIG["max_concurrent_jobs"])
 
 # Set of user IDs currently processing (survives context.user_data clears)
 _processing_users: set[int] = set()
+
+
+def _refresh_semaphore():
+    """Recreate the semaphore if max_concurrent_jobs was changed by admin."""
+    global _job_sem
+    _job_sem = asyncio.Semaphore(CONFIG["max_concurrent_jobs"])
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -50,6 +58,11 @@ def _kb(*rows):
         [[InlineKeyboardButton(txt, callback_data=dat) for txt, dat in row]
          for row in rows]
     )
+
+
+def _md_escape(text: str) -> str:
+    """Escape Markdown v1 special characters in user-provided text."""
+    return re.sub(r'([_*`\[])', r'\\\1', text or "")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -76,6 +89,9 @@ async def language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
 
     lang = query.data.split("_", 1)[1]   # e.g. "lang_ru" → "ru"
+    if lang not in LANGUAGE_NAMES:
+        await query.answer("Invalid language.", show_alert=True)
+        return ConversationHandler.END
     user = update.effective_user
 
     db.set_user_language(user.id, lang)
@@ -84,7 +100,7 @@ async def language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         t(lang, "language_set"), parse_mode=ParseMode.MARKDOWN
     )
     await query.message.reply_text(
-        t(lang, "welcome", name=user.first_name),
+        t(lang, "welcome", name=_md_escape(user.first_name or "")),
         parse_mode=ParseMode.MARKDOWN,
     )
     return ConversationHandler.END
@@ -134,7 +150,7 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(
         t(lang, "stats_text",
-          name=user.first_name, joined=joined,
+          name=_md_escape(user.first_name or ""), joined=joined,
           photos=row["photos_processed"] or 0,
           videos=row["videos_processed"] or 0,
           total=total, time=proc_t,
@@ -178,6 +194,9 @@ async def receive_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.reply_text(t(lang, "processing_wait"))
         return ConversationHandler.END
 
+    # Reserve slot immediately to prevent concurrent processing (H2 fix)
+    _processing_users.add(user.id)
+
     # ── Identify media ────────────────────────────────────────────────────────
     file_id = None
     m_type  = None
@@ -208,8 +227,10 @@ async def receive_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ext     = raw_ext if raw_ext in (".mp4", ".mov", ".avi", ".mkv", ".webm") else ".mp4"
         else:
             await msg.reply_text(t(lang, "unsupported_type"), parse_mode=ParseMode.MARKDOWN)
+            _processing_users.discard(user.id)
             return ConversationHandler.END
     else:
+        _processing_users.discard(user.id)
         return ConversationHandler.END
 
     # ── Download ──────────────────────────────────────────────────────────────
@@ -225,6 +246,7 @@ async def receive_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
                   file_mb=tg_file.file_size / 1024 / 1024),
                 parse_mode=ParseMode.MARKDOWN,
             )
+            _processing_users.discard(user.id)
             return ConversationHandler.END
 
         fname = f"{user.id}_{uuid.uuid4().hex}{ext}"
@@ -240,6 +262,7 @@ async def receive_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
             t(lang, "download_failed", error=str(exc)[:120]),
             parse_mode=ParseMode.MARKDOWN,
         )
+        _processing_users.discard(user.id)
         return ConversationHandler.END
 
     # ── Security scan ──────────────────────────────────────────────────────────
@@ -253,18 +276,24 @@ async def receive_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode=ParseMode.MARKDOWN,
         )
         logger.warning(f"[SECURITY] User {user.id} sent dangerous file: {reason}")
+        _processing_users.discard(user.id)
         return ConversationHandler.END
 
     # ── Store state ────────────────────────────────────────────────────────────
-    context.user_data.update({"input": fpath, "type": m_type, "lang": lang})
+    context.user_data.update({"input": fpath, "type": m_type, "lang": lang, "original_ext": ext})
 
     # ── Build size keyboard ────────────────────────────────────────────────────
     kb_rows = []
 
     if row and row["last_size"]:
-        kb_rows.append([
-            (t(lang, "last_size_btn", size=row["last_size"]), f"sz_{row['last_size']}")
-        ])
+        last = row["last_size"]
+        valid = last == "compressed" or (
+            "x" in last and all(p.isdigit() for p in last.split("x", 1))
+        )
+        if valid:
+            kb_rows.append([
+                (t(lang, "last_size_btn", size=last), f"sz_{last}")
+            ])
 
     kb_rows.append([(t(lang, "compress_btn"), "sz_compress")])
 
@@ -296,10 +325,11 @@ async def size_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "sz_cancel":
         asyncio.create_task(safe_delete([context.user_data.get("input")]))
         context.user_data.clear()
+        _processing_users.discard(query.from_user.id)
         await query.edit_message_text(t(lang, "cancelled"), parse_mode=ParseMode.MARKDOWN)
         return ConversationHandler.END
 
-    if data == "sz_compress":
+    if data == "sz_compress" or data == "sz_compressed":
         context.user_data.update({"target": (0, 0), "mode": "compress"})
         return await _ask_format(query, context)
 
@@ -367,7 +397,12 @@ async def custom_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    context.user_data["mode"] = query.data.split("_", 1)[1]   # "pad" or "stretch"
+    mode = query.data.split("_", 1)[1]
+    if mode not in ("pad", "stretch"):
+        await query.edit_message_text("❌ Invalid mode.")
+        _processing_users.discard(query.from_user.id)
+        return ConversationHandler.END
+    context.user_data["mode"] = mode
     return await _ask_format(query, context)
 
 
@@ -377,7 +412,15 @@ async def mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def format_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    context.user_data["output_format"] = query.data.split("_", 1)[1]   # e.g. "jpg"
+    fmt = query.data.split("_", 1)[1]
+    m_type = context.user_data.get("type", "photo")
+    allowed = set(IMAGE_FORMATS) if m_type == "photo" else set(VIDEO_FORMATS)
+    allowed.add("keep")
+    if fmt not in allowed:
+        await query.edit_message_text("❌ Invalid format.")
+        _processing_users.discard(query.from_user.id)
+        return ConversationHandler.END
+    context.user_data["output_format"] = fmt
     return await _process_media(update, context)
 
 
@@ -431,10 +474,32 @@ async def _process_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mode    = context.user_data.get("mode", "pad")
     w, h    = context.user_data.get("target", (0, 0))
     raw_fmt = context.user_data.get("output_format", "keep")
+    original_ext = context.user_data.get("original_ext", "")
 
-    # Resolve "keep" to a sensible default based on type
+    # Guard: input file must exist (L2 fix)
+    if not inp or not os.path.exists(inp):
+        _processing_users.discard(user.id)
+        await query.edit_message_text(t(lang, "error_generic", error="Input file missing"),
+                                      parse_mode=ParseMode.MARKDOWN)
+        return ConversationHandler.END
+
+    # Snapshot config values to prevent mid-processing mutation (H3 fix)
+    cfg_timeout    = CONFIG["process_timeout"]
+    cfg_img_quality = CONFIG["compress_image_quality"]
+    cfg_video_crf   = CONFIG["video_crf"]
+    cfg_compress_crf = CONFIG["compress_video_crf"]
+    cfg_video_preset = CONFIG["video_preset"]
+    cfg_max_bitrate  = CONFIG["max_video_bitrate"]
+
+    # Recreate semaphore if admin changed max_concurrent_jobs (M2 fix)
+    _refresh_semaphore()
+
+    # Resolve "keep" to the original file's format
     if raw_fmt == "keep":
-        out_fmt = "jpg" if m_type == "photo" else "mp4"
+        if m_type == "photo":
+            out_fmt = EXT_TO_IMAGE_FORMAT.get(original_ext, "jpg")
+        else:
+            out_fmt = EXT_TO_VIDEO_FORMAT.get(original_ext, "mp4")
     else:
         out_fmt = raw_fmt
 
@@ -450,7 +515,6 @@ async def _process_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_cmp = (mode == "compress")
 
     db.update_last_size(user.id, size_s)
-    _processing_users.add(user.id)
     t0 = time.time()
 
     try:
@@ -459,18 +523,22 @@ async def _process_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
             async with _job_sem:
                 await asyncio.wait_for(
                     asyncio.to_thread(
-                        process_image_sync, inp, outp, w, h, mode, out_fmt, is_cmp
+                        process_image_sync, inp, outp, w, h, mode, out_fmt, is_cmp,
+                        img_quality=cfg_img_quality,
                     ),
-                    timeout=CONFIG["process_timeout"],
+                    timeout=cfg_timeout,
                 )
         else:
             await query.edit_message_text(t(lang, "rendering_video"), parse_mode=ParseMode.MARKDOWN)
             async with _job_sem:
                 await asyncio.wait_for(
                     asyncio.to_thread(
-                        process_video_sync, inp, outp, w, h, mode, out_fmt, is_cmp
+                        process_video_sync, inp, outp, w, h, mode, out_fmt, is_cmp,
+                        video_crf=cfg_video_crf, compress_crf=cfg_compress_crf,
+                        video_preset=cfg_video_preset, max_bitrate=cfg_max_bitrate,
+                        timeout=cfg_timeout,
                     ),
-                    timeout=CONFIG["process_timeout"],
+                    timeout=cfg_timeout,
                 )
 
         elapsed = time.time() - t0

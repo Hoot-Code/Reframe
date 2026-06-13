@@ -47,7 +47,7 @@ STRINGS: dict[str, dict[str, str]] = {
             "• Instagram Post: 1080×1080\n"
             "• Instagram Story: 1080×1920\n"
             "• HD: 1280×720  |  Full HD: 1920×1080\n"
-            "• 4K: 3840×2160  |  YouTube: 1280×720\n"
+            "• 4K: 3840×2160\n"
             "• Twitter: 1200×675  |  Facebook: 820×312\n\n"
             "*Resize modes:*\n"
             "🎯 *Fit* — keeps ratio, adds black bars\n"

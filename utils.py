@@ -38,7 +38,7 @@ async def safe_delete(paths: list) -> None:
     Delete a list of file paths safely and quietly.
     Short delay so any pending reads finish first.
     """
-    await asyncio.sleep(1.0)
+    await asyncio.sleep(0.1)
     for p in paths:
         if p and os.path.exists(p):
             try:

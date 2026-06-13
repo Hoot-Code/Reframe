@@ -31,6 +31,22 @@ VIDEO_FORMATS: dict[str, tuple[str, str, str]] = {
     "mkv": ("libx264", ".mkv", "MKV"),
 }
 
+# ── Extension → format key mappings (for "Keep Original") ──────────────────────
+EXT_TO_IMAGE_FORMAT: dict[str, str] = {
+    ".jpg":  "jpg",
+    ".jpeg": "jpg",
+    ".png":  "png",
+    ".webp": "webp",
+}
+
+EXT_TO_VIDEO_FORMAT: dict[str, str] = {
+    ".mp4":  "mp4",
+    ".mov":  "mp4",
+    ".avi":  "avi",
+    ".mkv":  "mkv",
+    ".webm": "mp4",
+}
+
 
 # ── FFprobe helpers ────────────────────────────────────────────────────────────
 def get_video_info(input_path: str) -> Optional[dict]:
@@ -66,6 +82,7 @@ def process_image_sync(
     mode:          str,   # "pad" | "stretch" | "compress"
     output_format: str = "jpg",
     compress:      bool = False,
+    img_quality:   int = None,
 ) -> None:
     """
     Resize / compress / convert an image.
@@ -106,7 +123,9 @@ def process_image_sync(
 
         # Quality / compression settings
         use_compress = compress or (mode == "compress")
-        quality = CONFIG["compress_image_quality"] if use_compress else 92
+        if img_quality is None:
+            img_quality = CONFIG["compress_image_quality"]
+        quality = img_quality if use_compress else 92
 
         save_kwargs: dict = {"optimize": True}
         if pil_fmt == "JPEG":
@@ -135,6 +154,11 @@ def process_video_sync(
     mode:          str,   # "pad" | "stretch" | "compress"
     output_format: str = "mp4",
     compress:      bool = False,
+    video_crf:     int = None,
+    compress_crf:  int = None,
+    video_preset:  str = None,
+    max_bitrate:   str = None,
+    timeout:       int = None,
 ) -> None:
     """
     Resize / compress / convert a video via FFmpeg.
@@ -145,7 +169,15 @@ def process_video_sync(
 
     codec, _, _ = VIDEO_FORMATS.get(output_format, ("libx264", ".mp4", "MP4"))
     use_compress = compress or (mode == "compress")
-    crf = CONFIG["compress_video_crf"] if use_compress else CONFIG["video_crf"]
+    if video_crf is None:
+        video_crf = CONFIG["video_crf"]
+    if compress_crf is None:
+        compress_crf = CONFIG["compress_video_crf"]
+    if video_preset is None:
+        video_preset = CONFIG["video_preset"]
+    if max_bitrate is None:
+        max_bitrate = CONFIG["max_video_bitrate"]
+    crf = compress_crf if use_compress else video_crf
 
     # Video filter
     if mode == "compress":
@@ -171,9 +203,9 @@ def process_video_sync(
     else:
         cmd += [
             "-c:v", codec,
-            "-preset", CONFIG["video_preset"],
+            "-preset", video_preset,
             "-crf", str(crf),
-            "-maxrate", CONFIG["max_video_bitrate"],
+            "-maxrate", max_bitrate,
             "-bufsize", "10M",
             "-pix_fmt", "yuv420p",
         ]
@@ -190,11 +222,14 @@ def process_video_sync(
 
     logger.info(f"FFmpeg: {' '.join(cmd)}")
 
+    if timeout is None:
+        timeout = CONFIG["process_timeout"]
+
     result = subprocess.run(
         cmd,
         capture_output=True,
         text=True,
-        timeout=CONFIG["process_timeout"],
+        timeout=timeout,
         check=False,
     )
 
