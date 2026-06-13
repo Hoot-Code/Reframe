@@ -170,7 +170,7 @@ def process_video_sync(
         cmd += ["-c:v", "libxvid", "-qscale:v", str(q_val)]
     else:
         cmd += [
-            "-c:v", "libx264",
+            "-c:v", codec,
             "-preset", CONFIG["video_preset"],
             "-crf", str(crf),
             "-maxrate", CONFIG["max_video_bitrate"],

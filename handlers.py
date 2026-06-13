@@ -33,6 +33,9 @@ logger = logging.getLogger(__name__)
 # One semaphore shared across all users
 _job_sem = asyncio.Semaphore(CONFIG["max_concurrent_jobs"])
 
+# Set of user IDs currently processing (survives context.user_data clears)
+_processing_users: set[int] = set()
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -171,7 +174,7 @@ async def receive_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.reply_text(t(lang, "maintenance"), parse_mode=ParseMode.MARKDOWN)
         return ConversationHandler.END
 
-    if context.user_data.get("is_processing"):
+    if user.id in _processing_users:
         await msg.reply_text(t(lang, "processing_wait"))
         return ConversationHandler.END
 
@@ -310,6 +313,13 @@ async def size_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         _, size_part = data.split("_", 1)
         w, h = map(int, size_part.split("x"))
+        max_r = CONFIG["max_resolution"]
+        if w > max_r or h > max_r:
+            await query.edit_message_text(
+                t(lang, "size_too_large", max_res=max_r, your_res=max(w, h)),
+                parse_mode=ParseMode.MARKDOWN,
+            )
+            return SELECT_SIZE
         context.user_data["target"] = (w, h)
         return await _ask_mode(query, lang)
     except (ValueError, IndexError):
@@ -440,21 +450,27 @@ async def _process_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_cmp = (mode == "compress")
 
     db.update_last_size(user.id, size_s)
-    context.user_data["is_processing"] = True
+    _processing_users.add(user.id)
     t0 = time.time()
 
     try:
         if m_type == "photo":
             await query.edit_message_text(t(lang, "processing"), parse_mode=ParseMode.MARKDOWN)
             async with _job_sem:
-                await asyncio.to_thread(
-                    process_image_sync, inp, outp, w, h, mode, out_fmt, is_cmp
+                await asyncio.wait_for(
+                    asyncio.to_thread(
+                        process_image_sync, inp, outp, w, h, mode, out_fmt, is_cmp
+                    ),
+                    timeout=CONFIG["process_timeout"],
                 )
         else:
             await query.edit_message_text(t(lang, "rendering_video"), parse_mode=ParseMode.MARKDOWN)
             async with _job_sem:
-                await asyncio.to_thread(
-                    process_video_sync, inp, outp, w, h, mode, out_fmt, is_cmp
+                await asyncio.wait_for(
+                    asyncio.to_thread(
+                        process_video_sync, inp, outp, w, h, mode, out_fmt, is_cmp
+                    ),
+                    timeout=CONFIG["process_timeout"],
                 )
 
         elapsed = time.time() - t0
@@ -505,7 +521,7 @@ async def _process_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
                        "error", time.time() - t0, err_str[:500])
 
     finally:
-        context.user_data["is_processing"] = False
+        _processing_users.discard(user.id)
         # Clean up both input and all possible output extensions
         to_del = [inp]
         if inp:

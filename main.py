@@ -90,7 +90,7 @@ def build_app():
         ],
         states={
             SELECT_SIZE: [
-                CallbackQueryHandler(size_callback)
+                CallbackQueryHandler(size_callback, pattern=r"^sz_")
             ],
             CUSTOM_SIZE: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, custom_size)
@@ -115,7 +115,8 @@ def build_app():
                 CallbackQueryHandler(admin_callback, pattern=r"^ban_"),
             ],
             ADMIN_INPUT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, admin_input_handler)
+                CallbackQueryHandler(admin_callback, pattern=r"^adm_"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, admin_input_handler),
             ],
         },
         fallbacks=[CommandHandler("cancel", cancel_command)],

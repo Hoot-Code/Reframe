@@ -193,6 +193,12 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["adm_action"] = "settings"
         return ADMIN_INPUT
 
+    # ── Back from ADMIN_INPUT state ───────────────────────────────────────────
+    if data == "adm_back":
+        context.user_data.pop("adm_action", None)
+        await _render_panel(update)
+        return ADMIN_MENU
+
     # ── Broadcast prompt ───────────────────────────────────────────────────────
     if data == "adm_cast":
         await query.edit_message_text(

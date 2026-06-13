@@ -4,7 +4,10 @@ All user-facing strings in 4 languages: English, Russian, Chinese, Persian.
 Helper function t(lang, key, **kwargs) returns the localised string.
 """
 
+import logging
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 # ── Language metadata ──────────────────────────────────────────────────────────
 LANGUAGE_NAMES: dict[str, str] = {
@@ -390,6 +393,6 @@ def t(lang: str, key: str, **kwargs: Any) -> str:
     if kwargs:
         try:
             text = text.format(**kwargs)
-        except (KeyError, ValueError):
-            pass
+        except (KeyError, ValueError) as exc:
+            logger.warning(f"Locale format error: lang={lang} key={key} error={exc}")
     return text
