@@ -1,3 +1,6 @@
 python-telegram-bot==21.5
 Pillow>=10.3.0
 python-dotenv>=1.0.0
+
+# Development / Testing
+pytest>=7.0.0

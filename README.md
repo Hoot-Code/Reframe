@@ -13,6 +13,7 @@
 [![Python](https://img.shields.io/badge/Python-3.12%2B-blue?logo=python)](https://python.org)
 [![python-telegram-bot](https://img.shields.io/badge/python--telegram--bot-21.5-blue)](https://python-telegram-bot.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-110%20passed-brightgreen)](#testing)
 
 </div>
 
@@ -25,7 +26,7 @@
 | 📸 **Image processing** | Resize, compress, convert — JPG · PNG · WEBP |
 | 🎬 **Video processing** | Resize, compress, convert — MP4 · AVI · MKV |
 | 🗜️ **Compress mode** | Reduce file size without changing resolution |
-| 🔄 **Format conversion** | Convert between image and video formats |
+| 🔄 **Format conversion** | Convert between supported image and video formats |
 | 🎯 **Fit / Stretch** | Maintain aspect ratio or force exact dimensions |
 | 🔒 **Security scanner** | Magic-byte validation + malicious-pattern detection |
 | 🌐 **4 languages** | English · Русский · 中文 · فارسی |
@@ -45,14 +46,16 @@ ReFrame/
 ├── handlers.py          # User-facing conversation handlers
 ├── admin_handlers.py    # Admin panel (invisible to regular users)
 ├── media_processor.py   # Image & video processing (Pillow + FFmpeg)
-├── scanner.py           # Security scanner
+├── scanner.py           # Security scanner (lightweight pre-screening)
 ├── locales.py           # Strings in EN / RU / ZH / FA
 ├── utils.py             # Helpers (cleanup, safe_delete)
+├── tests/               # Automated test suite
 ├── requirements.txt
 ├── Dockerfile
 ├── .env.example         # Template for secrets (copy to .env)
 ├── .gitignore
-└── temp_media/          # Created automatically
+├── .dockerignore
+└── temp_media/          # Created automatically at runtime
 ```
 
 ---
@@ -88,9 +91,9 @@ sudo apt install ffmpeg
 ```bash
 cp .env.example .env
 ```
-Fill in:
+Edit `.env` and fill in:
 ```
-BOT_TOKEN=YOUR_BOT_TOKEN_HERE
+BOT_TOKEN=your_bot_token_here
 ADMIN_IDS=123456789
 ```
 
@@ -135,11 +138,23 @@ Language is selected at first `/start` and can be changed any time with `/lang`.
 
 ## 🔒 Security Scanner
 
+> ⚠️ **Important:** This is a **lightweight pre-screening mechanism**, not a full security analysis. It provides a first line of defense against obvious threats but cannot guarantee file safety.
+
 Every uploaded file is scanned **before** processing:
 
 - **Magic-byte validation** — file header must match the claimed type (e.g. a `.jpg` must start with `FF D8 FF`)
 - **Malicious-pattern detection** — rejects files containing PHP code, shell scripts, ELF/PE executables, or embedded ZIP archives
+- **JPEG EOF validation** — verifies JPEG files end with the correct EOF marker
 - **Events logged** — every blocked file is recorded in the `security_logs` table with user ID, threat description, and timestamp
+
+### Limitations
+
+The scanner **cannot** detect:
+- Polymorphic or encrypted payloads
+- Logic bombs or time-delayed exploits
+- Steganographic content
+- Decoder-specific vulnerabilities
+- Memory-corruption triggers
 
 ---
 
@@ -175,10 +190,98 @@ Access `/admin` (only visible to user IDs listed in `ADMIN_IDS`):
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `BOT_TOKEN` | ✅ | — | Telegram bot token |
-| `ADMIN_IDS` | ✅ | — | Comma-separated admin user IDs |
-| `MAX_FILE_SIZE_MB` | ❌ | `50` | Max upload size |
-| `MAX_CONCURRENT_JOBS` | ❌ | `2` | Parallel processing limit |
+| `BOT_TOKEN` | ✅ | — | Telegram bot token from @BotFather |
+| `ADMIN_IDS` | ✅ | — | Comma-separated Telegram user IDs for admin access |
+| `MAX_FILE_SIZE_MB` | ❌ | `50` | Maximum upload file size in MB |
+| `MAX_CONCURRENT_JOBS` | ❌ | `2` | Maximum parallel processing jobs |
+
+---
+
+## 🧪 Testing
+
+Run the test suite:
+```bash
+# Install test dependencies
+pip install -r requirements.txt
+
+# Run all tests
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run specific test module
+pytest tests/test_scanner.py
+```
+
+### Test Coverage
+
+| Module | Tests | Coverage |
+|---|---|---|
+| `scanner.py` | 25 tests | Magic bytes, malicious patterns, EOF validation, full scan |
+| `database.py` | 20 tests | User CRUD, language prefs, settings, stats |
+| `handlers.py` | 30 tests | Size parsing, format validation, mode validation, MD escaping |
+| `config.py` | 11 tests | Env parsing, presets, conversation states |
+| `locales.py` | 8 tests | Translation, formatting, key coverage |
+
+---
+
+## 🛠️ Development Setup
+
+### Prerequisites
+- Python 3.12+
+- FFmpeg
+- SQLite (included with Python)
+
+### Local Development
+```bash
+# Clone and setup
+git clone https://github.com/Hoot-Code/ReFrame.git
+cd ReFrame
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Configure
+cp .env.example .env
+# Edit .env with your BOT_TOKEN and ADMIN_IDS
+
+# Run
+python main.py
+
+# In another terminal — run tests
+pytest -v
+```
+
+### Project Conventions
+- **Code style:** PEP 8, no comments unless explaining non-obvious logic
+- **Error handling:** Fail safely, log errors, never crash the bot
+- **Security:** Validate all user inputs, scan all uploaded files
+- **Testing:** Add tests for new features, maintain >90% coverage
+
+---
+
+## 🐛 Troubleshooting
+
+### Bot doesn't start
+- Check that `BOT_TOKEN` is set in `.env`
+- Ensure FFmpeg is installed and accessible in PATH
+- Verify Python 3.12+ is being used
+
+### Files are rejected by scanner
+- The scanner is a lightweight pre-screening tool
+- Some legitimate files may be flagged if they contain unusual byte patterns
+- Check `security_logs` in the admin panel for details
+
+### Processing is slow
+- Video processing depends on FFmpeg and file complexity
+- Large files or high resolutions take longer
+- Adjust `MAX_CONCURRENT_JOBS` to limit parallel processing
+
+### Database errors
+- The bot uses SQLite (file: `bot_data.db`)
+- Ensure the bot has write permissions in the working directory
+- Check disk space if writes fail
 
 ---
 
