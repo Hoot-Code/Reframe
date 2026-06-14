@@ -3,10 +3,14 @@
 # 🦉 ReFrame
 
 
+**ربات تلگرامی حرفه‌ای برای تغییر اندازه، فشرده‌سازی و تبدیل تصاویر و ویدئوها**
+
+*توسط [Hoot-Code](https://github.com/Hoot-Code)*
 
 [![Python](https://img.shields.io/badge/Python-3.12%2B-blue?logo=python)](https://python.org)
 [![python-telegram-bot](https://img.shields.io/badge/python--telegram--bot-21.5-blue)](https://python-telegram-bot.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-124%20passed-brightgreen)](#تست‌ها)
 
 </div>
 
@@ -23,9 +27,16 @@
 | 🎯 **Fit / Stretch** | حفظ نسبت تصویر یا اعمال ابعاد دقیق |
 | 🔒 **اسکنر امنیتی** | اعتبارسنجی Magic Byte و تشخیص فایل‌های مخرب |
 | 🌐 **چندزبانه** | انگلیسی · روسی · چینی · فارسی |
-| 🛡️ **پنل مدیریت** | ارسال همگانی، مسدودسازی کاربران، آمار و تنظیمات زنده |
+| 🛡️ **پنل مدیریت** | ارسال همگانی، مسدودسازی، آمار، تنظیمات زنده، سلامت، خاموشی |
 | 💾 **تاریخچه کاربران** | ذخیره آخرین اندازه استفاده شده |
 | ⚡ **پردازش همزمان** | مدیریت چند عملیات موازی با محدودیت منابع |
+| 🐘 **PostgreSQL** | پایگاه داده آماده تولید با اتصالات استخر شده |
+| 📊 **Metriс‌های Prometheus** | مانیتورینگ لحظه‌ای با داشبوردهای Grafana |
+| 🔭 **OpenTelemetry** | ردیابی توزیع‌شده از طریق OTLP |
+| 🚀 **Kubernetes** | استقرار خودکار (۲ تا ۱۰ پاد) |
+| 🏷️ **پرچم‌های ویژگی** | فعال/غیرفعال کردن ویژگی‌ها بدون استقرار مجدد |
+| 🛡️ **محدودیت نرخ** | محدودیت آپلود فایل به ازای هر کاربر (۵ در دقیقه) |
+| 🔄 **خاموشی آرام** | تکمیل عملیات در حال اجرا قبل از خروج |
 
 ---
 
@@ -34,87 +45,92 @@
 ```text
 ReFrame/
 ├── main.py              # نقطه ورود و اجرای ربات
-├── config.py            # تنظیمات و متغیرهای محیطی
-├── database.py          # مدیریت پایگاه داده SQLite
+├── config.py            # متغیرهای محیطی، پرچم‌های ویژگی و تنظیمات
+├── database.py          # مدیریت پایگاه داده دوگانه (SQLite / PostgreSQL)
 ├── handlers.py          # مدیریت تعاملات کاربران
 ├── admin_handlers.py    # پنل مدیریت
-├── media_processor.py   # پردازش تصاویر و ویدئوها
+├── media_processor.py   # پردازش تصاویر و ویدئوها (Pillow + FFmpeg)
 ├── scanner.py           # اسکنر امنیتی
 ├── locales.py           # ترجمه‌ها و متون چندزبانه
 ├── utils.py             # توابع کمکی
+├── metrics.py           # متريک‌های Prometheus
+├── tracing.py           # ردیابی توزیع‌شده OpenTelemetry
+├── tests/               # ۱۲۴ تست خودکار
+├── k8s/                 # فایل‌های پیکربندی Kubernetes
+├── monitoring/          # پیکربندی Prometheus و Grafana
+├── docker-compose.yml   # استک کامل تولید
+├── locustfile.py        # پیکربندی تست بار
+├── SECURITY.md          # سیاست امنیتی و مستندات SOC 2
 ├── requirements.txt
+├── pyproject.toml       # بسته‌بندی مدرن پایتون
 ├── Dockerfile
-├── .env                 # اطلاعات محرمانه
+├── .env.example         # الگوی متغیرهای محیطی
 ├── .gitignore
-└── temp_media/          # پوشه موقت فایل‌ها
+├── .dockerignore
+└── temp_media/          # به‌صورت خودکار ایجاد می‌شود
 ```
 
 ---
 
 ## 🚀 شروع سریع
 
-### 1. دریافت پروژه
-
+### ۱. دریافت پروژه
 ```bash
 git clone https://github.com/Hoot-Code/ReFrame.git
 cd ReFrame
 ```
 
-### 2. نصب وابستگی‌ها
-
+### ۲. نصب وابستگی‌ها
 ```bash
 python -m venv venv
-source venv/bin/activate
+source venv/bin/activate        # ویندوز: venv\Scripts\activate
 pip install -r requirements.txt
+
+# یا نصب با تمام افزونه‌های اختیاری:
+pip install -e ".[all]"
 ```
 
-**نیازمند Python 3.12 یا بالاتر**
-
----
-
-### 3. نصب FFmpeg
-
+### ۳. نصب FFmpeg
 ```bash
 # macOS
 brew install ffmpeg
 
 # Ubuntu / Debian
 sudo apt install ffmpeg
+
+# ویندوز — دانلود از https://ffmpeg.org/download.html
 ```
 
-ویندوز:
-FFmpeg را از وب‌سایت رسمی دانلود و نصب کنید.
-
----
-
-### 4. پیکربندی
-
+### ۴. پیکربندی
 ```bash
-cp .env .env.local
+cp .env.example .env
 ```
-
-مقادیر زیر را تنظیم کنید:
-
-```env
-BOT_TOKEN=YOUR_BOT_TOKEN
+فایل `.env` را ویرایش کنید:
+```
+BOT_TOKEN=your_bot_token_here
 ADMIN_IDS=123456789
 ```
 
----
-
-### 5. اجرا
-
+### ۵. اجرا
 ```bash
 python main.py
 ```
 
----
-
-## 🐳 اجرای Docker
-
+### Docker (مستقل)
 ```bash
 docker build -t reframe-bot .
 docker run -d --env-file .env --name reframe reframe-bot
+```
+
+### Docker Compose (استک کامل)
+```bash
+docker compose up -d
+```
+شامل: ربات + PostgreSQL + Redis + Prometheus + Grafana
+
+### Kubernetes
+```bash
+kubectl apply -f k8s/
 ```
 
 ---
@@ -128,7 +144,9 @@ docker run -d --env-file .env --name reframe reframe-bot
 | `/stats` | مشاهده آمار استفاده |
 | `/lang` | تغییر زبان |
 | `/cancel` | لغو عملیات جاری |
-| `/admin` | ورود به پنل مدیریت |
+| `/admin` | ورود به پنل مدیریت *(فقط مدیران)* |
+| `/health` | بررسی سلامت ربات *(فقط مدیران)* |
+| `/shutdown` | خاموشی آرام *(فقط مدیران)* |
 
 ---
 
@@ -147,11 +165,25 @@ docker run -d --env-file .env --name reframe reframe-bot
 
 ## 🔒 اسکنر امنیتی
 
+> ⚠️ **مهم:** این یک **مکانیزم غربالگری سبک** است، نه تحلیل امنیتی کامل.
+
 تمام فایل‌های آپلودشده پیش از پردازش بررسی می‌شوند:
 
-- اعتبارسنجی Magic Byte برای اطمینان از واقعی بودن نوع فایل
-- شناسایی کدهای مخرب، اسکریپت‌های Shell، فایل‌های اجرایی و آرشیوهای مشکوک
-- ثبت تمام رویدادهای امنیتی در پایگاه داده
+- **اعتبارسنجی Magic Byte** — هدر فایل باید با نوع ادعایی مطابقت داشته باشد
+- **شناسایی الگوهای مخرب** — رد فایل‌های حاوی PHP، اسکریپت‌های Shell، ELF/PE، ZIP جاسازی‌شده
+- **اعتبارسنجی EOF JPEG** — بررسی انتهای صحیح فایل‌های JPEG
+- **ثبت رویدادها** — هر فایل مسدودشده در `security_logs` ثبت می‌شود
+
+### محدودیت‌ها
+
+اسکنر **نمی‌تواند** تشخیص دهد:
+- پردازه‌های چندشکلی یا رمزگذاری‌شده
+- بمب‌های منطقی یا حملات تأخیری
+- محتوای استگانوگرافیک
+- آسیب‌پذیری‌های خاص دیکدرها
+- محرک‌های از بین بردن حافظه
+
+جزئیات کامل در [SECURITY.md](SECURITY.md) موجود است.
 
 ---
 
@@ -159,12 +191,14 @@ docker run -d --env-file .env --name reframe reframe-bot
 
 قابل دسترس از طریق `/admin` برای مدیران تعریف‌شده:
 
-- 📢 ارسال پیام همگانی
-- 👤 مدیریت کاربران (مسدودسازی و رفع مسدودیت)
-- 🚧 فعال یا غیرفعال کردن حالت تعمیرات
-- 📊 مشاهده آمار کامل ربات
-- 🔒 مشاهده گزارش‌های امنیتی
-- ⚙️ تغییر تنظیمات به‌صورت زنده
+- 📢 **ارسال پیام همگانی**
+- 👤 **مدیریت کاربران** (مسدودسازی و رفع مسدودیت)
+- 🚧 **حالت تعمیرات** — متوقف کردن ربات برای کاربران غیرمدیر
+- 📊 **آمار کامل** — جزئیات استفاده و نرخ موفقیت
+- 🔒 **گزارش‌های امنیتی** — ۱۵ رویداد آخر
+- ⚙️ **تنظیمات** — تغییر زنده CRF، preset، کیفیت، حداکثر حجم
+- ❤️ **سلامت** — وضعیت ربات، عملیات فعال، زمان کارکرد
+- 🛑 **خاموشی** — خاموشی آرام (تکمیل عملیات در حال اجرا)
 
 ---
 
@@ -177,10 +211,9 @@ docker run -d --env-file .env --name reframe reframe-bot
 | HD | 1280 × 720 |
 | Full HD | 1920 × 1080 |
 | 4K | 3840 × 2160 |
-| یوتیوب | 1280 × 720 |
 | توییتر | 1200 × 675 |
 | کاور فیسبوک | 820 × 312 |
-| سفارشی | تا 3840 پیکسل |
+| ✏️ سفارشی | هر اندازه (تا ۳۸۴۰ پیکسل) |
 
 ---
 
@@ -188,14 +221,145 @@ docker run -d --env-file .env --name reframe reframe-bot
 
 | متغیر | ضروری | پیش‌فرض | توضیح |
 |---------|---------|---------|---------|
-| `BOT_TOKEN` | ✅ | — | توکن ربات تلگرام |
-| `ADMIN_IDS` | ✅ | — | شناسه مدیران |
-| `MAX_FILE_SIZE_MB` | ❌ | 50 | حداکثر حجم فایل |
-| `MAX_CONCURRENT_JOBS` | ❌ | 2 | تعداد پردازش همزمان |
+| `BOT_TOKEN` | ✅ | — | توکن ربات تلگرام از @BotFather |
+| `ADMIN_IDS` | ✅ | — | شناسه‌های تلگرام مدیران ( جدا شده با کاما) |
+| `DB_BACKEND` | ❌ | `sqlite` | بک‌اند پایگاه داده: `sqlite` یا `postgresql` |
+| `DATABASE_URL` | ❌ | — | آدرس اتصال PostgreSQL |
+| `REDIS_URL` | ❌ | — | آدرس Redis برای محدودیت نرخ توزیع‌شده |
+| `MAX_FILE_SIZE_MB` | ❌ | `50` | حداکثر حجم فایل آپلود (مگابایت) |
+| `MAX_CONCURRENT_JOBS` | ❌ | `2` | حداکثر عملیات پردازش همزمان |
+| `FF_RATE_LIMITING` | ❌ | `true` | فعال‌سازی محدودیت نرخ به ازای هر کاربر |
+| `FF_SCANNER` | ❌ | `true` | فعال‌سازی اسکنر امنیتی |
+| `FF_METRICS` | ❌ | `true` | فعال‌سازی متريک‌های Prometheus |
+| `FF_TRACING` | ❌ | `false` | فعال‌سازی ردیابی OpenTelemetry |
+
+---
+
+## 📊 مانیتورینگ
+
+### متريک‌های Prometheus
+
+متريک‌ها در `http://localhost:9090/metrics` در دسترس هستند:
+
+| متريک | نوع | توضیح |
+|---------|------|---------|
+| `reframe_commands_total` | counter | دستورات دریافتی |
+| `reframe_files_processed` | counter | فایل‌های پردازش‌شده موفق |
+| `reframe_files_failed` | counter | فایل‌های ناموفق |
+| `reframe_scan_threats` | counter | تهدیدات شناسایی‌شده |
+| `reframe_active_jobs` | gauge | عملیات در حال پردازش |
+| `reframe_processing_time_seconds` | summary | تأخیر پردازش |
+
+### داشبورد Grafana
+
+دسترسی به Grafana در `http://localhost:3000` (admin/admin):
+- داشبوردهای از پیش پیکربندی‌شده
+- منبع داده Prometheus به‌صورت خودکار پیکربندی می‌شود
+
+---
+
+## 🧪 تست‌ها
+
+### اجرای تست‌ها
+```bash
+# تمام تست‌ها
+pytest
+
+# با جزئیات
+pytest -v
+
+# ماژول خاص
+pytest tests/test_scanner.py
+
+# فقط تست‌های یکپارچه
+pytest tests/test_integration.py tests/test_e2e.py
+```
+
+### پوشش تست‌ها
+
+| ماژول | تعداد | پوشش |
+|-------|--------|-------|
+| `scanner.py` | ۲۵ | Magic bytes، الگوهای مخرب، اعتبارسنجی EOF |
+| `database.py` | ۲۰ | CRUD کاربران، تنظیمات زبان، آمار، چرخش لاگ |
+| `handlers.py` | ۳۰ | پارس اندازه، اعتبارسنجی فرمت/حالت، فرار MD |
+| `config.py` | ۱۱ | پارس env، presetها، حالات مکالمه |
+| `locales.py` | ۸ | ترجمه، قالب‌بندی، پوشش کلیدها |
+| `integration` | ۱۰ | جریان‌های بین ماژولی، محدودیت نرخ، چرخش لاگ |
+| `e2e` | ۲۰ | جریان‌های handler با API تلگرام Mock شده |
+| **مجموع** | **۱۲۴** | |
+
+### تست بار
+```bash
+# نصب Locust
+pip install locust
+
+# اجرای تست بار
+locust -f locustfile.py --host=http://localhost:9090
+```
+
+---
+
+## 🛠️ محیط توسعه
+
+### پیش‌نیازها
+- Python 3.12+
+- FFmpeg
+- SQLite (included) یا PostgreSQL
+
+### توسعه محلی
+```bash
+git clone https://github.com/Hoot-Code/ReFrame.git
+cd ReFrame
+python -m venv venv
+source venv/bin/activate
+pip install -e ".[dev]"
+
+cp .env.example .env
+# فایل .env را با BOT_TOKEN و ADMIN_IDS خود ویرایش کنید
+
+python main.py
+
+# در ترمینال دیگر
+pytest -v
+```
+
+### قراردادهای پروژه
+- **سبک کد:** PEP 8، بدون توضیحات مگر برای منطق غیر واضح
+- **مدیریت خطا:** شکست ایمن، ثبت خطا، هرگز ربات را متوقف نکنید
+- **امنیت:** اعتبارسنجی تمام ورودی‌های کاربر، اسکن تمام فایل‌های آپلود شده
+- **تست:** اضافه کردن تست برای ویژگی‌های جدید، حفظ پوشش >۹۰٪
+
+---
+
+## 🐛 عیب‌یابی
+
+### ربات شروع نمی‌شود
+- بررسی کنید `BOT_TOKEN` در `.env` تنظیم شده باشد
+- FFmpeg نصب و در PATH در دسترس باشد
+- Python 3.12+ استفاده شود
+
+### فایل‌ها توسط اسکنر رد می‌شوند
+- اسکنر یک ابزار غربالگری سبک است
+- برخی فایل‌های موجه ممکن است به دلیل الگوهای بایتی غیر معمول رد شوند
+- جزئیات در پنل مدیریت بخش `security_logs` موجود است
+
+### پردازش کند است
+- پردازش ویدئو به FFmpeg و پیچیدگی فایل بستگی دارد
+- فایل‌های بزرگ یا رزولوشن‌های بالاتر زمان بیشتری نیاز دارند
+- `MAX_CONCURRENT_JOBS` را برای افزایش موازی‌سازی تنظیم کنید
+
+### خطاهای پایگاه داده
+- SQLite: مطمئن شوید مجوز نوشتن در دایرکتوری کاری دارید
+- PostgreSQL: `DATABASE_URL` و اجرای سرور را بررسی کنید
+- فضای دیسک را بررسی کنید
+
+### محدودیت نرخ فعال شده
+- حد پیش‌فرض: ۵ فایل در دقیقه به ازای هر کاربر
+- غیرفعال کردن: `FF_RATE_LIMITING=false` در `.env`
+- یا ۶۰ ثانیه قبل از ارسال فایل بعدی صبر کنید
 
 ---
 
 ## 📄 مجوز
-
 
 MIT © [Hoot-Code](https://github.com/Hoot-Code)
