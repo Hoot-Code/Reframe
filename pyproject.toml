@@ -4,8 +4,8 @@ build-backend = "setuptools.backends._legacy:_Backend"
 
 [project]
 name = "reframe-bot"
-version = "1.0.0"
-description = "Telegram bot for resizing, compressing, and converting photos & videos"
+version = "2.0.0"
+description = "Enterprise-grade Telegram bot for resizing, compressing, and converting photos & videos"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.12"
@@ -19,8 +19,21 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+postgres = ["psycopg2-binary>=2.9.0"]
+redis = ["redis>=5.0.0"]
+metrics = ["prometheus-client>=0.20.0"]
+tracing = [
+    "opentelemetry-api>=1.20.0",
+    "opentelemetry-sdk>=1.20.0",
+    "opentelemetry-exporter-otlp>=1.20.0",
+]
 dev = [
     "pytest>=7.0.0",
+    "pytest-asyncio>=0.23.0",
+    "locust>=2.20.0",
+]
+all = [
+    "reframe-bot[postgres,redis,metrics,tracing,dev]",
 ]
 
 [project.scripts]
@@ -32,3 +45,4 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
+asyncio_mode = "auto"

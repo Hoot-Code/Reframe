@@ -1,0 +1,92 @@
+version: "3.9"
+
+services:
+  # ── Application ─────────────────────────────────────────────────────────────
+  bot:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - DB_BACKEND=postgresql
+      - DATABASE_URL=postgresql://reframe:reframe@postgres:5432/reframe
+      - REDIS_URL=redis://redis:6379/0
+      - FF_METRICS=true
+      - FF_TRACING=true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "9090:9090"  # Prometheus metrics
+    networks:
+      - reframe
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: reframe
+      POSTGRES_USER: reframe
+      POSTGRES_PASSWORD: reframe
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reframe"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - reframe
+
+  # ── Redis ───────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - reframe
+
+  # ── Prometheus ──────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - promdata:/prometheus
+    ports:
+      - "9091:9090"
+    networks:
+      - reframe
+
+  # ── Grafana ─────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - grafdata:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - reframe
+
+volumes:
+  pgdata:
+  promdata:
+  grafdata:
+
+networks:
+  reframe:

@@ -1,0 +1,46 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "title": "ReFrame Bot",
+  "uid": "reframe-bot",
+  "panels": [
+    {
+      "title": "Active Jobs",
+      "type": "stat",
+      "targets": [{ "expr": "reframe_active_jobs", "legendFormat": "jobs" }],
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 }
+    },
+    {
+      "title": "Total Commands",
+      "type": "stat",
+      "targets": [{ "expr": "sum(reframe_commands_total)", "legendFormat": "total" }],
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 }
+    },
+    {
+      "title": "Files Processed",
+      "type": "stat",
+      "targets": [{ "expr": "sum(reframe_files_processed)", "legendFormat": "total" }],
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 }
+    },
+    {
+      "title": "Threats Blocked",
+      "type": "stat",
+      "targets": [{ "expr": "sum(reframe_scan_threats)", "legendFormat": "total" }],
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 }
+    },
+    {
+      "title": "Processing Rate (5m)",
+      "type": "timeseries",
+      "targets": [{ "expr": "rate(reframe_files_processed_total[5m])", "legendFormat": "{{type}}" }],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 }
+    },
+    {
+      "title": "Processing Latency (p95)",
+      "type": "timeseries",
+      "targets": [{ "expr": "reframe_processing_time_seconds{quantile=\"0.95\"}", "legendFormat": "p95" }],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 }
+    }
+  ],
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "10s"
+}

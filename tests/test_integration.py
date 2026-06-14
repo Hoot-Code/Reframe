@@ -21,9 +21,10 @@ class TestDatabaseToHandlerFlow:
     """Test database operations that handlers depend on."""
 
     def test_user_creation_and_language_flow(self):
+        import os, tempfile
         from database import DatabaseManager
         with tempfile.TemporaryDirectory() as tmpdir:
-            db = DatabaseManager(os.path.join(tmpdir, "test.db"))
+            db = DatabaseManager(backend="sqlite", db_path=os.path.join(tmpdir, "flow.db"))
 
             class MockUser:
                 id = 1001
@@ -49,9 +50,10 @@ class TestDatabaseToHandlerFlow:
             db._close()
 
     def test_settings_persistence_flow(self):
+        import os, tempfile
         from database import DatabaseManager
         with tempfile.TemporaryDirectory() as tmpdir:
-            db = DatabaseManager(os.path.join(tmpdir, "test.db"))
+            db = DatabaseManager(backend="sqlite", db_path=os.path.join(tmpdir, "settings.db"))
 
             db.set_setting("video_crf", 20)
             assert db.get_setting("video_crf") == "20"
@@ -145,10 +147,11 @@ class TestLogRotation:
     """Test log rotation deletes old entries."""
 
     def test_rotation_deletes_old_entries(self):
+        import os, tempfile
         from database import DatabaseManager
         from datetime import datetime, timedelta
         with tempfile.TemporaryDirectory() as tmpdir:
-            db = DatabaseManager(os.path.join(tmpdir, "test.db"))
+            db = DatabaseManager(backend="sqlite", db_path=os.path.join(tmpdir, "rotate.db"))
 
             class MockUser:
                 id = 2001

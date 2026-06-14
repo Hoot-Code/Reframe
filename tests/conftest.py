@@ -7,6 +7,9 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
+# Force SQLite backend for tests (avoid PostgreSQL dependency)
+os.environ["DB_BACKEND"] = "sqlite"
+
 
 @pytest.fixture
 def tmp_dir():

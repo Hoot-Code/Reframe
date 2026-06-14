@@ -11,7 +11,8 @@ def db():
     """Create a fresh in-memory database for each test."""
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = os.path.join(tmpdir, "test.db")
-        manager = DatabaseManager(db_path)
+        from database import DatabaseManager
+        manager = DatabaseManager(backend="sqlite", db_path=db_path)
         yield manager
         manager._close()
 

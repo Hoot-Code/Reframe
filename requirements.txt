@@ -2,5 +2,19 @@ python-telegram-bot==21.5
 Pillow>=10.3.0
 python-dotenv>=1.0.0
 
+# Database (optional — PostgreSQL support)
+psycopg2-binary>=2.9.0
+
+# Redis (optional — for distributed rate limiting)
+redis>=5.0.0
+
+# Observability
+prometheus-client>=0.20.0
+opentelemetry-api>=1.20.0
+opentelemetry-sdk>=1.20.0
+opentelemetry-exporter-otlp>=1.20.0
+
 # Development / Testing
 pytest>=7.0.0
+pytest-asyncio>=0.23.0
+locust>=2.20.0

@@ -11,6 +11,17 @@ import signal
 import sys
 import logging
 
+from config import BOT_TOKEN, ADMIN_IDS, CONFIG, FEATURE_FLAGS
+
+# Initialize observability before anything else
+if FEATURE_FLAGS.get("enable_metrics"):
+    from metrics import start_metrics_server
+    start_metrics_server()
+
+if FEATURE_FLAGS.get("enable_tracing"):
+    from tracing import init_tracing
+    init_tracing()
+
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,

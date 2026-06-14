@@ -29,17 +29,25 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run tests
-        run: pytest -v --tb=short
+      - name: Run unit tests
+        run: pytest tests/ -v --tb=short -x
+
+      - name: Run integration tests
+        run: pytest tests/test_integration.py tests/test_e2e.py -v --tb=short
 
       - name: Syntax check
         run: |
-          python -m py_compile main.py
-          python -m py_compile config.py
-          python -m py_compile database.py
-          python -m py_compile handlers.py
-          python -m py_compile admin_handlers.py
-          python -m py_compile media_processor.py
-          python -m py_compile scanner.py
-          python -m py_compile utils.py
-          python -m py_compile locales.py
+          for f in main.py config.py database.py handlers.py admin_handlers.py \
+                   media_processor.py scanner.py utils.py locales.py metrics.py tracing.py; do
+            python -m py_compile "$f" || exit 1
+          done
+          echo "All files OK"
+
+      - name: Security scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          exit-code: 0
+          severity: CRITICAL,HIGH
