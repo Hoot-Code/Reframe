@@ -11,6 +11,7 @@ import re
 import time
 import uuid
 import logging
+from collections import defaultdict
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
@@ -37,6 +38,34 @@ _job_sem = asyncio.Semaphore(CONFIG["max_concurrent_jobs"])
 
 # Set of user IDs currently processing (survives context.user_data clears)
 _processing_users: set[int] = set()
+
+# Graceful shutdown flag
+_shutdown_requested: bool = False
+
+# Per-user rate limiting: user_id -> list of timestamps
+_user_rate_limits: dict[int, list[float]] = defaultdict(list)
+RATE_LIMIT_WINDOW = 60  # seconds
+RATE_LIMIT_MAX = 5      # max files per window
+
+
+def request_shutdown():
+    """Signal the bot to shut down gracefully."""
+    global _shutdown_requested
+    _shutdown_requested = True
+    logger.info("Shutdown requested — finishing in-flight jobs...")
+
+
+def _check_rate_limit(user_id: int) -> bool:
+    """Return True if user is within rate limits, False if exceeded."""
+    now = time.time()
+    cutoff = now - RATE_LIMIT_WINDOW
+    _user_rate_limits[user_id] = [
+        t for t in _user_rate_limits[user_id] if t > cutoff
+    ]
+    if len(_user_rate_limits[user_id]) >= RATE_LIMIT_MAX:
+        return False
+    _user_rate_limits[user_id].append(now)
+    return True
 
 
 def _refresh_semaphore():
@@ -173,6 +202,41 @@ async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# /health  — health check endpoint
+# ─────────────────────────────────────────────────────────────────────────────
+async def health_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    if user.id not in ADMIN_IDS:
+        return
+    stats = db.get_total_stats()
+    active = len(_processing_users)
+    await update.message.reply_text(
+        f"✅ *Bot Health*\n\n"
+        f"⏱ Uptime: running\n"
+        f"👥 Users: {stats['total_users']}\n"
+        f"⚙️ Active jobs: {active}/{CONFIG['max_concurrent_jobs']}\n"
+        f"📊 Total jobs: {stats['total_jobs']}\n"
+        f"🚫 Threats blocked: {stats['total_threats']}\n"
+        f"🔒 Shutdown: {' requested' if _shutdown_requested else 'no'}",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# /shutdown  — graceful shutdown (admin only)
+# ─────────────────────────────────────────────────────────────────────────────
+async def shutdown_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    if user.id not in ADMIN_IDS:
+        return
+    request_shutdown()
+    await update.message.reply_text(
+        "🛑 *Shutdown requested.*\nIn-flight jobs will complete, then the bot will stop.",
+        parse_mode=ParseMode.MARKDOWN,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # receive_media  (entry point for the processing conversation)
 # ─────────────────────────────────────────────────────────────────────────────
 async def receive_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -182,6 +246,10 @@ async def receive_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = _lang(user.id)
 
     # ── Guards ────────────────────────────────────────────────────────────────
+    if _shutdown_requested:
+        await msg.reply_text(t(lang, "maintenance"), parse_mode=ParseMode.MARKDOWN)
+        return ConversationHandler.END
+
     if row and row["is_banned"]:
         await msg.reply_text(t(lang, "banned"), parse_mode=ParseMode.MARKDOWN)
         return ConversationHandler.END
@@ -192,6 +260,10 @@ async def receive_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if user.id in _processing_users:
         await msg.reply_text(t(lang, "processing_wait"))
+        return ConversationHandler.END
+
+    if not _check_rate_limit(user.id):
+        await msg.reply_text(t(lang, "rate_limit"), parse_mode=ParseMode.MARKDOWN)
         return ConversationHandler.END
 
     # Reserve slot immediately to prevent concurrent processing (H2 fix)

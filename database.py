@@ -238,6 +238,23 @@ class DatabaseManager:
         return {k: row[k] for k in ("total_users","total_photos","total_videos",
                                      "total_banned","total_threats","total_jobs","success_jobs")}
 
+    # ── Log rotation ───────────────────────────────────────────────────────────
+    def rotate_logs(self, days_to_keep: int = 30) -> int:
+        """Delete log entries older than *days_to_keep* days. Returns count deleted."""
+        from datetime import timedelta
+        cutoff = (datetime.now() - timedelta(days=days_to_keep)).isoformat()
+        with self.lock:
+            c = self.conn.cursor()
+            c.execute("DELETE FROM process_logs WHERE timestamp < ?", (cutoff,))
+            process_deleted = c.rowcount
+            c.execute("DELETE FROM security_logs WHERE timestamp < ?", (cutoff,))
+            security_deleted = c.rowcount
+            self.conn.commit()
+        total = process_deleted + security_deleted
+        if total:
+            logger.info(f"Log rotation: deleted {process_deleted} process + {security_deleted} security entries older than {days_to_keep} days")
+        return total
+
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 db = DatabaseManager()

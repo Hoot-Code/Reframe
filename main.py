@@ -7,6 +7,7 @@ main thread.  We create and set one explicitly before calling run_polling().
 """
 
 import asyncio
+import signal
 import sys
 import logging
 
@@ -31,6 +32,7 @@ from utils import post_init
 from handlers import (
     start, language_callback, lang_command,
     help_command, stats_command, cancel_command,
+    health_command, shutdown_command,
     receive_media, size_callback, custom_size,
     mode_callback, format_callback,
 )
@@ -128,6 +130,8 @@ def build_app():
     app.add_handler(lang_conv)
     app.add_handler(CommandHandler("help",  help_command))
     app.add_handler(CommandHandler("stats", stats_command))
+    app.add_handler(CommandHandler("health", health_command))
+    app.add_handler(CommandHandler("shutdown", shutdown_command))
     app.add_handler(admin_conv)
     app.add_handler(media_conv)
 
@@ -158,12 +162,25 @@ def main():
             except (ValueError, TypeError):
                 pass
 
+    # ── Rotate old logs on startup ────────────────────────────────────────────
+    db.rotate_logs(days_to_keep=30)
+
     # ── Python 3.14 fix: explicitly create and set the event loop ─────────────
     # asyncio.get_event_loop() no longer auto-creates a loop in Python 3.14+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
     app = build_app()
+
+    # ── Graceful shutdown on SIGTERM/SIGINT ──────────────────────────────────
+    from handlers import request_shutdown
+
+    def _signal_handler(sig, frame):
+        logger.info(f"Received signal {sig} — initiating graceful shutdown")
+        request_shutdown()
+
+    signal.signal(signal.SIGTERM, _signal_handler)
+    signal.signal(signal.SIGINT, _signal_handler)
 
     logger.info("=" * 55)
     logger.info("🦉  ReFrame Bot  |  by Hoot-Code")

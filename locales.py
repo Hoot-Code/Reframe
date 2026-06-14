@@ -122,6 +122,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "fit_btn":       "🎯 Fit (Pad)",
         "stretch_btn":   "🔲 Stretch",
         "keep_fmt_btn":  "✅ Keep original",
+        "rate_limit":    "🚫 *Rate limit exceeded.*\nPlease wait a moment before sending another file.",
     },
 
     # ── RUSSIAN ───────────────────────────────────────────────────────────────
@@ -211,6 +212,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "fit_btn":       "🎯 Вписать",
         "stretch_btn":   "🔲 Растянуть",
         "keep_fmt_btn":  "✅ Оставить оригинал",
+        "rate_limit":    "🚫 *Превышен лимит запросов.*\nПодождите немного перед отправкой следующего файла.",
     },
 
     # ── CHINESE ───────────────────────────────────────────────────────────────
@@ -296,6 +298,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "fit_btn":       "🎯 适应",
         "stretch_btn":   "🔲 拉伸",
         "keep_fmt_btn":  "✅ 保持原格式",
+        "rate_limit":    "🚫 *超出速率限制。*\n请稍等片刻再发送另一个文件。",
     },
 
     # ── PERSIAN / FARSI ───────────────────────────────────────────────────────
@@ -381,6 +384,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "fit_btn":       "🎯 جا دادن",
         "stretch_btn":   "🔲 کشیدن",
         "keep_fmt_btn":  "✅ حفظ فرمت اصلی",
+        "rate_limit":    "🚫 *محدودیت سرعت رد شد.*\nلطفاً قبل از ارسال فایل بعدی کمی صبر کنید.",
     },
 }
 
